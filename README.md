@@ -68,7 +68,8 @@ container.initialObjects.diceSequence.insert(diceValuesCount, [value]);
 ```
 Note that changes on a `SharedNumberSequence` and other sequences can be detected through a watch on `sequenceDelta`. See [here](https://github.com/microsoft/FluidFramework/blob/bd0079be2ec9553c8dbe0b1b89b898e789cb66c8/packages/dds/sequence/src/sequence.ts#L70) for more information.
 
-This version is available in the branch https://github.com/svdoever/FluidHelloWorld/tree/feature/correct-sequence
+This version is available in the main branch https://github.com/svdoever/FluidHelloWorld
+
 ## Requirements
 
 Node 12.17+
