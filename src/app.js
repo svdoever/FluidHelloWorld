@@ -69,10 +69,11 @@ const recordDiceValue = (container, value) => {
 
     // Update sequence of dice values
     if (!container.initialObjects.diceSequence) {
-        log("Initial creation of dice sequence");
         try {
+          log("Initial creation of dice sequence");
+
           container.initialObjects.diceSequence = SharedNumberSequence.create(
-              container.runtime,
+              undefined,
               "dice-sequence"
           );
         } catch (e) {
@@ -132,8 +133,8 @@ const root = document.getElementById("content");
 
 const createNewDice = async () => {
     const { container } = await client.createContainer(containerSchema);
-        log(`You initially rolled a 1`);
-        recordDiceValue(container, 1);
+    log(`You initially rolled a 1`);
+    recordDiceValue(container, 1);
     const id = await container.attach();
     renderDiceRoller(container, root);
 
