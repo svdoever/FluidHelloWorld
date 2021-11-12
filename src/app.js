@@ -25,13 +25,6 @@ const client = new AzureClient(serviceConfig);
 const diceValueKey = "dice-value-key";
 const diceValuesKey = "dice-values-key";
 
-const containerSchema = {
-    initialObjects: {
-        diceMap: SharedMap,
-        diceSequence: SharedNumberSequence,
-    },
-};
-
 // Log message as HTML to 'log' div element
 const log = (message) => {
     if (!message) {
@@ -40,9 +33,9 @@ const log = (message) => {
     const root = document.getElementById("content");
     const logElement = root.querySelector(".log");
     if (logElement) {
-      const currentTime = (new Date()).toLocaleTimeString();
-      logElement.innerHTML += `<br/>${currentTime}: ${message}`;
-      logElement.scrollTop = logElement.scrollHeight; // scroll to bottom
+        const currentTime = new Date().toLocaleTimeString();
+        logElement.innerHTML += `<br/>${currentTime}: ${message}`;
+        logElement.scrollTop = logElement.scrollHeight; // scroll to bottom
     }
 };
 
@@ -67,19 +60,6 @@ const recordDiceValue = (container, value) => {
     }
     container.initialObjects.diceMap.set(diceValuesKey, diceValues);
 
-    // Update sequence of dice values
-    if (!container.initialObjects.diceSequence) {
-        try {
-          log("Initial creation of dice sequence");
-
-          container.initialObjects.diceSequence = SharedNumberSequence.create(
-              undefined,
-              "dice-sequence"
-          );
-        } catch (e) {
-            log(`Error creating dice sequence: ${e}`);
-        }
-    }
     const diceValuesCount = container.initialObjects.diceSequence.getItemCount();
     container.initialObjects.diceSequence.insert(diceValuesCount, [value]);
     //log(`Dice value ${value} recorded in sequence`);
@@ -101,6 +81,10 @@ const getDiceValue = (container) => {
 
 const getDiceValuesAsText = (container) => {
     const diceValues = container.initialObjects.diceMap.get(diceValuesKey);
+    if (!container) {
+        return "<not started yet>";
+    }
+
     if (!diceValues) {
         return "<no values yet>";
     } else {
@@ -110,49 +94,56 @@ const getDiceValuesAsText = (container) => {
 };
 
 const getDiceValuesSequenceAsText = (container) => {
-  const diceSequence = container.initialObjects.diceSequence;
-  if (!diceSequence) {
-    return "diceSequence does not exist";
-  }
+    const diceSequence = container.initialObjects.diceSequence;
+    if (!diceSequence) {
+        return "diceSequence does not exist";
+    }
 
-  const diceValuesCount = container.initialObjects.diceSequence.getItemCount();
-  if (diceValuesCount === 0) {
-    return "0 dice values in sequence";
-  }
+    const diceValuesCount = container.initialObjects.diceSequence.getItemCount();
+    if (diceValuesCount === 0) {
+        return "0 dice values in sequence";
+    }
 
-  const diceValues = container.initialObjects.diceSequence.getItems(0, diceValuesCount);
-  if (!diceValues) {
-      return "dice values can't be retrieved";
-  } else {
-      const diceValuesAsText = diceValues.map((value) => value.toString()).join(" ");
-      return diceValuesAsText;
-  }
+    const diceValues = container.initialObjects.diceSequence.getItems(0, diceValuesCount);
+    if (!diceValues) {
+        return "dice values can't be retrieved";
+    } else {
+        const diceValuesAsText = diceValues.map((value) => value.toString()).join(" ");
+        return diceValuesAsText;
+    }
 };
 
-const root = document.getElementById("content");
+const createFluidContainer = async () => {
+    const containerSchema = {
+        initialObjects: {
+            diceMap: SharedMap,
+            diceSequence: SharedNumberSequence,
+        },
+    };
 
-const createNewDice = async () => {
     const { container } = await client.createContainer(containerSchema);
-    log(`You initially rolled a 1`);
-    recordDiceValue(container, 1);
+
     const id = await container.attach();
-    renderDiceRoller(container, root);
+    recordDiceValue(container, 1);
+    renderDiceRoller(container);
+    log(`New fluid container created with id ${id}`);
+    log(`You initially rolled a 1`);
 
     return id;
 };
 
-const loadExistingDice = async (id) => {
+const loadFluidContainer = async (id) => {
     const { container } = await client.getContainer(id, containerSchema);
-    renderDiceRoller(container, root);
+    renderDiceRoller(container);
+    log(`Load existing fluid container with id ${id}`);
 };
 
 async function start() {
     if (location.hash) {
-        await loadExistingDice(location.hash.substring(1));
+        await loadFluidContainer(location.hash.substring(1));
     } else {
-        const id = await createNewDice();
+        const id = await createFluidContainer();
         location.hash = id;
-        log(`New dice created with id ${id}`);
     }
 }
 
@@ -192,16 +183,18 @@ template.innerHTML = `
   </div>
 `;
 
-const renderDiceRoller = (container, elem) => {
-    elem.appendChild(template.content.cloneNode(true));
+const renderDiceRoller = (container) => {
+    const root = document.getElementById("content");
 
-    const rollButton = elem.querySelector(".roll");
-    const clearButton = elem.querySelector(".clear");
-    const redrawButton = elem.querySelector(".redraw");
+    root.appendChild(template.content.cloneNode(true));
 
-    const dice = elem.querySelector(".dice");
-    const dicevaluesElement = elem.querySelector(".dicevalues");
-    const dicevaluesSequenceElement = elem.querySelector(".dicevaluesSequence");
+    const rollButton = root.querySelector(".roll");
+    const clearButton = root.querySelector(".clear");
+    const redrawButton = root.querySelector(".redraw");
+
+    const dice = root.querySelector(".dice");
+    const dicevaluesElement = root.querySelector(".dicevalues");
+    const dicevaluesSequenceElement = root.querySelector(".dicevaluesSequence");
 
     // Set the value at our dataKey with a random number between 1 and 6.
     rollButton.onclick = () => {
@@ -217,7 +210,7 @@ const renderDiceRoller = (container, elem) => {
     };
 
     redrawButton.onclick = () => {
-      updateDice();
+        updateDice();
     };
 
     // Get the current value of the shared data to update the view whenever it changes.
@@ -237,20 +230,20 @@ const renderDiceRoller = (container, elem) => {
 
     // Use the changed event to trigger the rerender whenever the value changes.
     container.initialObjects.diceMap.on("valueChanged", () => {
-      // log("diceMap: valueChanged");
-      updateDice(); 
+        // log("diceMap: valueChanged");
+        updateDice();
     });
 
     // valueChanged events occur on SharedMap
     container.initialObjects.diceSequence.on("valueChanged", (e) => {
-      // log("diceSequence: valueChanged: " + JSON.stringify(e));
-      updateDice();
+        // log("diceSequence: valueChanged: " + JSON.stringify(e));
+        updateDice();
     });
 
     // sequenceDelta events occur on SharedSequence
     container.initialObjects.diceSequence.on("sequenceDelta", (e) => {
-      // log("diceSequence: sequenceDelta: " + JSON.stringify(e));
-      updateDice();
+        // log("diceSequence: sequenceDelta: " + JSON.stringify(e));
+        updateDice();
     });
 
     // op event occurs on SharedSequence as well
